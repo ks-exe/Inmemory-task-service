@@ -430,3 +430,71 @@ git add .
 git commit -m "Stage 5: Swagger UI"
 git push
 ```
+
+## Stage 6: publish and docs
+
+Port note: this checkpoint used port `8003` to avoid older local Uvicorn processes. If port `8000` is free, the same commands work by replacing `8003` with `8000`.
+
+Run command:
+
+```powershell
+python -m uvicorn main:app --host 127.0.0.1 --port 8003
+```
+
+Checkpoint command:
+
+```powershell
+curl.exe -sS -i http://127.0.0.1:8003/
+```
+
+Actual output:
+
+```txt
+HTTP/1.1 200 OK
+date: Wed, 19 Aug 2026 12:39:12 GMT
+server: uvicorn
+content-length: 58
+content-type: application/json
+
+{"name":"Task API","version":"1.0","endpoints":["/tasks"]}
+```
+
+Checkpoint command:
+
+```powershell
+curl.exe -sS -i http://127.0.0.1:8003/health
+```
+
+Actual output:
+
+```txt
+HTTP/1.1 200 OK
+date: Wed, 19 Aug 2026 12:39:12 GMT
+server: uvicorn
+content-length: 15
+content-type: application/json
+
+{"status":"ok"}
+```
+
+Checkpoint command:
+
+```powershell
+curl.exe -sS http://127.0.0.1:8003/openapi.json | python -c "import json, sys; data = json.load(sys.stdin); print(data['info']['title']); print(data['info']['version']); print(data['info']['description'])"
+```
+
+Actual output:
+
+```txt
+Task API
+1.0
+An in-memory CRUD API for managing tasks.
+```
+
+Git commands:
+
+```powershell
+git add .
+git commit -m "Stage 6: publish and docs"
+git push
+```
