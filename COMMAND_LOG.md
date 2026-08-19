@@ -350,3 +350,83 @@ git add .
 git commit -m "Stage 4: full CRUD"
 git push
 ```
+
+## Stage 5: Swagger UI
+
+Port note: this checkpoint used port `8002` because ports `8000` and `8001` were already occupied by older local Uvicorn processes. If port `8000` is free, the same commands work by replacing `8002` with `8000`.
+
+Run command:
+
+```powershell
+python -m uvicorn main:app --host 127.0.0.1 --port 8002
+```
+
+Checkpoint command:
+
+```powershell
+curl.exe -sS -i http://127.0.0.1:8002/docs
+```
+
+Actual output:
+
+```txt
+HTTP/1.1 200 OK
+date: Wed, 19 Aug 2026 12:32:45 GMT
+server: uvicorn
+content-length: 1007
+content-type: text/html; charset=utf-8
+
+
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link type="text/css" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css">
+    <link rel="shortcut icon" href="https://fastapi.tiangolo.com/img/favicon.png">
+    <title>Task API - Swagger UI</title>
+    </head>
+    <body>
+    <div id="swagger-ui">
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+    <!-- `SwaggerUIBundle` is now available on the page -->
+    <script>
+    const ui = SwaggerUIBundle({
+        url: '/openapi.json',
+    "dom_id": "#swagger-ui",
+"layout": "BaseLayout",
+"deepLinking": true,
+"showExtensions": true,
+"showCommonExtensions": true,
+oauth2RedirectUrl: window.location.origin + '/docs/oauth2-redirect',
+    presets: [
+        SwaggerUIBundle.presets.apis,
+        SwaggerUIBundle.SwaggerUIStandalonePreset
+        ],
+    })
+    </script>
+    </body>
+    </html>
+```
+
+Checkpoint command:
+
+```powershell
+curl.exe -sS http://127.0.0.1:8002/openapi.json | python -c "import json, sys; data = json.load(sys.stdin); print(data['info']['title']); print(data['info']['version']); print(','.join(sorted(data['paths'].keys())))"
+```
+
+Actual output:
+
+```txt
+Task API
+1.0
+/,/health,/tasks,/tasks/{task_id}
+```
+
+Git commands:
+
+```powershell
+git add .
+git commit -m "Stage 5: Swagger UI"
+git push
+```

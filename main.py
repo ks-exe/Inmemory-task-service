@@ -6,7 +6,14 @@ BODY_INVALID_ERROR = {"error": "Request body must be a JSON object"}
 DONE_INVALID_ERROR = {"error": "Done must be a boolean"}
 TITLE_REQUIRED_ERROR = {"error": "Title is required and cannot be empty"}
 
-app = FastAPI()
+app = FastAPI(
+    title="Task API",
+    version="1.0",
+    description="An in-memory CRUD API for managing tasks.",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
+)
 
 tasks: list[Task] = [
     {"id": 1, "title": "Buy groceries", "done": False},
@@ -61,22 +68,22 @@ def parse_done(payload: dict[str, object], current_done: bool) -> bool | None:
     return done
 
 
-@app.get("/")
+@app.get("/", tags=["Service"], summary="Show API metadata")
 def root() -> dict[str, object]:
     return {"name": "Task API", "version": "1.0", "endpoints": ["/tasks"]}
 
 
-@app.get("/health")
+@app.get("/health", tags=["Service"], summary="Health check")
 def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.get("/tasks")
+@app.get("/tasks", tags=["Tasks"], summary="List tasks")
 def list_tasks() -> list[Task]:
     return tasks
 
 
-@app.get("/tasks/{task_id}")
+@app.get("/tasks/{task_id}", tags=["Tasks"], summary="Get a task by ID")
 def get_task(task_id: int):
     task = find_task(task_id)
     if task is None:
@@ -85,7 +92,7 @@ def get_task(task_id: int):
     return task
 
 
-@app.post("/tasks", status_code=201)
+@app.post("/tasks", status_code=201, tags=["Tasks"], summary="Create a task")
 async def create_task(request: Request):
     title = parse_title(await read_json_object(request))
     if title is None:
@@ -96,7 +103,7 @@ async def create_task(request: Request):
     return task
 
 
-@app.put("/tasks/{task_id}")
+@app.put("/tasks/{task_id}", tags=["Tasks"], summary="Update a task")
 async def update_task(task_id: int, request: Request):
     task = find_task(task_id)
     if task is None:
@@ -119,7 +126,7 @@ async def update_task(task_id: int, request: Request):
     return task
 
 
-@app.delete("/tasks/{task_id}", status_code=204)
+@app.delete("/tasks/{task_id}", status_code=204, tags=["Tasks"], summary="Delete a task")
 def delete_task(task_id: int):
     task = find_task(task_id)
     if task is None:
