@@ -157,3 +157,73 @@ git add .
 git commit -m "Stage 2: read endpoints with 404"
 git push
 ```
+
+## Stage 3: create with validation
+
+Run command:
+
+```powershell
+python -m uvicorn main:app --host 127.0.0.1 --port 8000
+```
+
+Checkpoint command:
+
+```powershell
+curl.exe -sS -i -X POST http://127.0.0.1:8000/tasks -H "Content-Type: application/json" -d '{""title"":""Write tests""}'
+```
+
+Actual output:
+
+```txt
+HTTP/1.1 201 Created
+date: Wed, 19 Aug 2026 11:06:54 GMT
+server: uvicorn
+content-length: 43
+content-type: application/json
+
+{"id":4,"title":"Write tests","done":false}
+```
+
+Checkpoint command:
+
+```powershell
+curl.exe -sS -i -X POST http://127.0.0.1:8000/tasks -H "Content-Type: application/json" -d '{}'
+```
+
+Actual output:
+
+```txt
+HTTP/1.1 400 Bad Request
+date: Wed, 19 Aug 2026 11:06:54 GMT
+server: uvicorn
+content-length: 49
+content-type: application/json
+
+{"error":"Title is required and cannot be empty"}
+```
+
+Checkpoint command:
+
+```powershell
+curl.exe -sS -i -X POST http://127.0.0.1:8000/tasks -H "Content-Type: application/json" -d '{""title"":""   ""}'
+```
+
+Actual output:
+
+```txt
+HTTP/1.1 400 Bad Request
+date: Wed, 19 Aug 2026 11:06:54 GMT
+server: uvicorn
+content-length: 49
+content-type: application/json
+
+{"error":"Title is required and cannot be empty"}
+```
+
+Git commands:
+
+```powershell
+git add .
+git commit -m "Stage 3: create with validation"
+git push
+```
