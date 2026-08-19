@@ -160,9 +160,21 @@ async def create_task(request: Request):
     if title is None:
         return JSONResponse(status_code=400, content=TITLE_REQUIRED_ERROR)
 
-    task = {"id": next_task_id(), "title": title, "done": False}
-    tasks.append(task)
-    return task
+    conn = get_db()
+    try:
+        cursor = conn.execute(
+            "INSERT INTO tasks (title, done) VALUES (?, ?)",
+            (title, 0),
+        )
+        conn.commit()
+        row = conn.execute(
+            "SELECT id, title, done FROM tasks WHERE id = ?",
+            (cursor.lastrowid,),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    return row_to_task(row)
 
 
 @app.put("/tasks/{task_id}", tags=["Tasks"], summary="Update a task")
