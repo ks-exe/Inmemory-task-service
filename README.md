@@ -4,10 +4,6 @@ A small in-memory Task CRUD API built with Python 3.10+ and FastAPI.
 
 The service stores tasks in a Python list only. It does not use a database, SQLite, or file-based persistence. Restarting the server resets the task list to the initial seed data.
 
-## Repository
-
-GitHub: https://github.com/ks-exe/Inmemory-task-service
-
 ## Project Files
 
 - `main.py`: FastAPI application and in-memory task logic.
