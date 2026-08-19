@@ -227,3 +227,126 @@ git add .
 git commit -m "Stage 3: create with validation"
 git push
 ```
+
+## Stage 4: full CRUD
+
+Port note: this checkpoint used port `8001` because port `8000` was already occupied by an older local Uvicorn process. If port `8000` is free, the same commands work by replacing `8001` with `8000`.
+
+Run command:
+
+```powershell
+python -m uvicorn main:app --host 127.0.0.1 --port 8001
+```
+
+Checkpoint command:
+
+```powershell
+curl.exe -sS -i -X PUT http://127.0.0.1:8001/tasks/1 -H "Content-Type: application/json" -d '{""title"":""Buy milk"",""done"":true}'
+```
+
+Actual output:
+
+```txt
+HTTP/1.1 200 OK
+date: Wed, 19 Aug 2026 11:18:28 GMT
+server: uvicorn
+content-length: 39
+content-type: application/json
+
+{"id":1,"title":"Buy milk","done":true}
+```
+
+Checkpoint command:
+
+```powershell
+curl.exe -sS -i -X PUT http://127.0.0.1:8001/tasks/999 -H "Content-Type: application/json" -d '{""title"":""Missing"",""done"":false}'
+```
+
+Actual output:
+
+```txt
+HTTP/1.1 404 Not Found
+date: Wed, 19 Aug 2026 11:18:28 GMT
+server: uvicorn
+content-length: 30
+content-type: application/json
+
+{"error":"Task 999 not found"}
+```
+
+Checkpoint command:
+
+```powershell
+curl.exe -sS -i -X PUT http://127.0.0.1:8001/tasks/1 -H "Content-Type: application/json" -d '{""title"":""   "",""done"":false}'
+```
+
+Actual output:
+
+```txt
+HTTP/1.1 400 Bad Request
+date: Wed, 19 Aug 2026 11:18:28 GMT
+server: uvicorn
+content-length: 49
+content-type: application/json
+
+{"error":"Title is required and cannot be empty"}
+```
+
+Checkpoint command:
+
+```powershell
+curl.exe -sS -i -X PUT http://127.0.0.1:8001/tasks/1 -H "Content-Type: application/json" -d '[]'
+```
+
+Actual output:
+
+```txt
+HTTP/1.1 400 Bad Request
+date: Wed, 19 Aug 2026 11:18:28 GMT
+server: uvicorn
+content-length: 46
+content-type: application/json
+
+{"error":"Request body must be a JSON object"}
+```
+
+Checkpoint command:
+
+```powershell
+curl.exe -sS -i -X DELETE http://127.0.0.1:8001/tasks/2
+```
+
+Actual output:
+
+```txt
+HTTP/1.1 204 No Content
+date: Wed, 19 Aug 2026 11:18:28 GMT
+server: uvicorn
+
+```
+
+Checkpoint command:
+
+```powershell
+curl.exe -sS -i -X DELETE http://127.0.0.1:8001/tasks/2
+```
+
+Actual output:
+
+```txt
+HTTP/1.1 404 Not Found
+date: Wed, 19 Aug 2026 11:18:28 GMT
+server: uvicorn
+content-length: 28
+content-type: application/json
+
+{"error":"Task 2 not found"}
+```
+
+Git commands:
+
+```powershell
+git add .
+git commit -m "Stage 4: full CRUD"
+git push
+```
