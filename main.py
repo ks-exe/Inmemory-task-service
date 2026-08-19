@@ -71,11 +71,15 @@ def find_task(task_id: int) -> Task | None:
     return next((task for task in tasks if task["id"] == task_id), None)
 
 
-def task_not_found_response(task_id: int) -> JSONResponse:
+def task_not_found_response() -> JSONResponse:
     return JSONResponse(
         status_code=404,
-        content={"error": f"Task {task_id} not found"},
+        content={"error": "Task not found"},
     )
+
+
+def row_to_task(row: sqlite3.Row) -> Task:
+    return {"id": row["id"], "title": row["title"], "done": bool(row["done"])}
 
 
 def next_task_id() -> int:
@@ -125,16 +129,29 @@ def health() -> dict[str, str]:
 
 @app.get("/tasks", tags=["Tasks"], summary="List tasks")
 def list_tasks() -> list[Task]:
-    return tasks
+    conn = get_db()
+    try:
+        rows = conn.execute("SELECT id, title, done FROM tasks ORDER BY id").fetchall()
+        return [row_to_task(row) for row in rows]
+    finally:
+        conn.close()
 
 
 @app.get("/tasks/{task_id}", tags=["Tasks"], summary="Get a task by ID")
 def get_task(task_id: int):
-    task = find_task(task_id)
-    if task is None:
-        return task_not_found_response(task_id)
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT id, title, done FROM tasks WHERE id = ?",
+            (task_id,),
+        ).fetchone()
+    finally:
+        conn.close()
 
-    return task
+    if row is None:
+        return task_not_found_response()
+
+    return row_to_task(row)
 
 
 @app.post("/tasks", status_code=201, tags=["Tasks"], summary="Create a task")
@@ -152,7 +169,7 @@ async def create_task(request: Request):
 async def update_task(task_id: int, request: Request):
     task = find_task(task_id)
     if task is None:
-        return task_not_found_response(task_id)
+        return task_not_found_response()
 
     payload = await read_json_object(request)
     if payload is None:
@@ -175,7 +192,7 @@ async def update_task(task_id: int, request: Request):
 def delete_task(task_id: int):
     task = find_task(task_id)
     if task is None:
-        return task_not_found_response(task_id)
+        return task_not_found_response()
 
     tasks.remove(task)
     return Response(status_code=204)

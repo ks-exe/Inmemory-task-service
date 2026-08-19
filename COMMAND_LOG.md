@@ -561,3 +561,75 @@ git add .
 git commit -m "Stage 0: create SQLite database"
 git push
 ```
+
+## Stage 1: database read endpoints
+
+Port note: this checkpoint used port `8005` to avoid older local Uvicorn processes. If port `8000` is free, the same commands work by replacing `8005` with `8000`.
+
+Run command:
+
+```powershell
+python -m uvicorn main:app --host 127.0.0.1 --port 8005
+```
+
+Checkpoint command:
+
+```powershell
+curl.exe -sS -i http://127.0.0.1:8005/tasks
+```
+
+Actual output:
+
+```txt
+HTTP/1.1 200 OK
+date: Wed, 19 Aug 2026 13:04:35 GMT
+server: uvicorn
+content-length: 146
+content-type: application/json
+
+[{"id":1,"title":"Buy groceries","done":false},{"id":2,"title":"Read a chapter of a book","done":true},{"id":3,"title":"Review PRs","done":false}]
+```
+
+Checkpoint command:
+
+```powershell
+curl.exe -sS -i http://127.0.0.1:8005/tasks/2
+```
+
+Actual output:
+
+```txt
+HTTP/1.1 200 OK
+date: Wed, 19 Aug 2026 13:04:35 GMT
+server: uvicorn
+content-length: 55
+content-type: application/json
+
+{"id":2,"title":"Read a chapter of a book","done":true}
+```
+
+Checkpoint command:
+
+```powershell
+curl.exe -sS -i http://127.0.0.1:8005/tasks/999
+```
+
+Actual output:
+
+```txt
+HTTP/1.1 404 Not Found
+date: Wed, 19 Aug 2026 13:04:35 GMT
+server: uvicorn
+content-length: 26
+content-type: application/json
+
+{"error":"Task not found"}
+```
+
+Git commands:
+
+```powershell
+git add .
+git commit -m "Stage 1: database read endpoints"
+git push
+```
