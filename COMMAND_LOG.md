@@ -723,3 +723,144 @@ git add .
 git commit -m "Stage 2: insert into database"
 git push
 ```
+
+## Stage 3: update and delete with SQL
+
+Port note: this checkpoint used port `8007` to avoid older local Uvicorn processes. If port `8000` is free, the same commands work by replacing `8007` with `8000`.
+
+Run command:
+
+```powershell
+python -m uvicorn main:app --host 127.0.0.1 --port 8007
+```
+
+Checkpoint command:
+
+```powershell
+curl.exe -sS -i -X PUT http://127.0.0.1:8007/tasks/4 -H "Content-Type: application/json" -d '{""title"":""Updated from SQL"",""done"":true}'
+```
+
+Actual output:
+
+```txt
+HTTP/1.1 200 OK
+date: Wed, 19 Aug 2026 15:38:34 GMT
+server: uvicorn
+content-length: 47
+content-type: application/json
+
+{"id":4,"title":"Updated from SQL","done":true}
+```
+
+Checkpoint command:
+
+```powershell
+curl.exe -sS -i http://127.0.0.1:8007/tasks/4
+```
+
+Actual output:
+
+```txt
+HTTP/1.1 200 OK
+date: Wed, 19 Aug 2026 15:38:34 GMT
+server: uvicorn
+content-length: 47
+content-type: application/json
+
+{"id":4,"title":"Updated from SQL","done":true}
+```
+
+Checkpoint command:
+
+```powershell
+curl.exe -sS -i -X PUT http://127.0.0.1:8007/tasks/999 -H "Content-Type: application/json" -d '{""title"":""Missing"",""done"":false}'
+```
+
+Actual output:
+
+```txt
+HTTP/1.1 404 Not Found
+date: Wed, 19 Aug 2026 15:38:34 GMT
+server: uvicorn
+content-length: 26
+content-type: application/json
+
+{"error":"Task not found"}
+```
+
+Checkpoint command:
+
+```powershell
+curl.exe -sS -i -X PUT http://127.0.0.1:8007/tasks/1 -H "Content-Type: application/json" -d '{""title"":""   "",""done"":false}'
+```
+
+Actual output:
+
+```txt
+HTTP/1.1 400 Bad Request
+date: Wed, 19 Aug 2026 15:38:34 GMT
+server: uvicorn
+content-length: 49
+content-type: application/json
+
+{"error":"Title is required and cannot be empty"}
+```
+
+Checkpoint command:
+
+```powershell
+curl.exe -sS -i -X PUT http://127.0.0.1:8007/tasks/1 -H "Content-Type: application/json" -d '{""title"":""Bad done"",""done"":""yes""}'
+```
+
+Actual output:
+
+```txt
+HTTP/1.1 400 Bad Request
+date: Wed, 19 Aug 2026 15:38:34 GMT
+server: uvicorn
+content-length: 34
+content-type: application/json
+
+{"error":"Done must be a boolean"}
+```
+
+Checkpoint command:
+
+```powershell
+curl.exe -sS -i -X DELETE http://127.0.0.1:8007/tasks/4
+```
+
+Actual output:
+
+```txt
+HTTP/1.1 204 No Content
+date: Wed, 19 Aug 2026 15:38:34 GMT
+server: uvicorn
+
+```
+
+Checkpoint command:
+
+```powershell
+curl.exe -sS -i -X DELETE http://127.0.0.1:8007/tasks/4
+```
+
+Actual output:
+
+```txt
+HTTP/1.1 404 Not Found
+date: Wed, 19 Aug 2026 15:38:34 GMT
+server: uvicorn
+content-length: 26
+content-type: application/json
+
+{"error":"Task not found"}
+```
+
+Git commands:
+
+```powershell
+git add .
+git commit -m "Stage 3: update and delete with SQL"
+git push
+```

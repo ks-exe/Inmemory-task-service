@@ -24,13 +24,6 @@ app = FastAPI(
     openapi_url="/openapi.json",
 )
 
-tasks: list[Task] = [
-    {"id": 1, "title": "Buy groceries", "done": False},
-    {"id": 2, "title": "Read a chapter of a book", "done": True},
-    {"id": 3, "title": "Review PRs", "done": False},
-]
-
-
 def get_db() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -67,10 +60,6 @@ def startup() -> None:
     setup_database()
 
 
-def find_task(task_id: int) -> Task | None:
-    return next((task for task in tasks if task["id"] == task_id), None)
-
-
 def task_not_found_response() -> JSONResponse:
     return JSONResponse(
         status_code=404,
@@ -80,10 +69,6 @@ def task_not_found_response() -> JSONResponse:
 
 def row_to_task(row: sqlite3.Row) -> Task:
     return {"id": row["id"], "title": row["title"], "done": bool(row["done"])}
-
-
-def next_task_id() -> int:
-    return max((int(task["id"]) for task in tasks), default=0) + 1
 
 
 async def read_json_object(request: Request) -> dict[str, object] | None:
@@ -179,32 +164,56 @@ async def create_task(request: Request):
 
 @app.put("/tasks/{task_id}", tags=["Tasks"], summary="Update a task")
 async def update_task(task_id: int, request: Request):
-    task = find_task(task_id)
-    if task is None:
-        return task_not_found_response()
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT id, title, done FROM tasks WHERE id = ?",
+            (task_id,),
+        ).fetchone()
 
-    payload = await read_json_object(request)
-    if payload is None:
-        return JSONResponse(status_code=400, content=BODY_INVALID_ERROR)
+        if row is None:
+            return task_not_found_response()
 
-    title = parse_title(payload)
-    if title is None:
-        return JSONResponse(status_code=400, content=TITLE_REQUIRED_ERROR)
+        payload = await read_json_object(request)
+        if payload is None:
+            return JSONResponse(status_code=400, content=BODY_INVALID_ERROR)
 
-    done = parse_done(payload, bool(task["done"]))
-    if done is None:
-        return JSONResponse(status_code=400, content=DONE_INVALID_ERROR)
+        title = parse_title(payload)
+        if title is None:
+            return JSONResponse(status_code=400, content=TITLE_REQUIRED_ERROR)
 
-    task["title"] = title
-    task["done"] = done
-    return task
+        done = parse_done(payload, bool(row["done"]))
+        if done is None:
+            return JSONResponse(status_code=400, content=DONE_INVALID_ERROR)
+
+        conn.execute(
+            "UPDATE tasks SET title = ?, done = ? WHERE id = ?",
+            (title, int(done), task_id),
+        )
+        conn.commit()
+
+        updated = conn.execute(
+            "SELECT id, title, done FROM tasks WHERE id = ?",
+            (task_id,),
+        ).fetchone()
+        return row_to_task(updated)
+    finally:
+        conn.close()
 
 
 @app.delete("/tasks/{task_id}", status_code=204, tags=["Tasks"], summary="Delete a task")
 def delete_task(task_id: int):
-    task = find_task(task_id)
-    if task is None:
-        return task_not_found_response()
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT id FROM tasks WHERE id = ?",
+            (task_id,),
+        ).fetchone()
+        if row is None:
+            return task_not_found_response()
 
-    tasks.remove(task)
-    return Response(status_code=204)
+        conn.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+        conn.commit()
+        return Response(status_code=204)
+    finally:
+        conn.close()
