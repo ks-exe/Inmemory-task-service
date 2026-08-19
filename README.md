@@ -1,15 +1,16 @@
 # Task API
 
-A small in-memory Task CRUD API built with Python 3.10+ and FastAPI.
+A small Task CRUD API built with Python 3.10+, FastAPI, and SQLite.
 
-The service stores tasks in a Python list only. It does not use a database, SQLite, or file-based persistence. Restarting the server resets the task list to the initial seed data.
+The service stores tasks in `tasks.db` inside this folder. The database file is created automatically when the app starts and is ignored by Git.
 
 ## Project Files
 
-- `main.py`: FastAPI application and in-memory task logic.
+- `main.py`: FastAPI application and SQLite task logic.
 - `requirements.txt`: Python dependencies.
 - `COMMAND_LOG.md`: Stage-by-stage commands and actual checkpoint outputs.
 - `README.md`: Setup and usage guide.
+- `tasks.db`: Local SQLite database created on startup. This file is not committed.
 
 ## Requirements
 
@@ -50,6 +51,34 @@ The OpenAPI schema is available at:
 ```txt
 http://127.0.0.1:8000/openapi.json
 ```
+
+## Database
+
+SQLite is used through Python's standard `sqlite3` module.
+
+Database file:
+
+```txt
+tasks.db
+```
+
+Table:
+
+```sql
+CREATE TABLE IF NOT EXISTS tasks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    done INTEGER NOT NULL
+)
+```
+
+On startup, the app checks:
+
+```sql
+SELECT COUNT(*) FROM tasks
+```
+
+The default tasks are inserted only when the table is empty, so restarting the app does not duplicate seed data.
 
 ## Initial Seed Data
 
@@ -131,7 +160,7 @@ curl.exe -sS -i -X DELETE http://127.0.0.1:8000/tasks/1
 Missing task:
 
 ```json
-{"error": "Task <id> not found"}
+{"error": "Task not found"}
 ```
 
 Missing or blank title:
@@ -154,6 +183,8 @@ Invalid `done` value:
 
 ## Stage History
 
+### Assignment 1
+
 - Stage 0: hello server
 - Stage 1: root and health endpoints
 - Stage 2: read endpoints with 404
@@ -161,3 +192,12 @@ Invalid `done` value:
 - Stage 4: full CRUD
 - Stage 5: Swagger UI
 - Stage 6: publish and docs
+
+### Assignment 2
+
+- Stage 0: create SQLite database
+- Stage 1: database read endpoints
+- Stage 2: insert into database
+- Stage 3: update and delete with SQL
+- Stage 4: explored SQLite
+- Stage 5: database documentation

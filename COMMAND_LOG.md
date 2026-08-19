@@ -914,3 +914,69 @@ git add .
 git commit -m "Stage 4: explored SQLite"
 git push
 ```
+
+## Stage 5: database documentation
+
+Port note: this checkpoint used port `8009` to avoid older local Uvicorn processes. If port `8000` is free, the same commands work by replacing `8009` with `8000`.
+
+Run command:
+
+```powershell
+python -m uvicorn main:app --host 127.0.0.1 --port 8009
+```
+
+Checkpoint command:
+
+```powershell
+curl.exe -sS -i http://127.0.0.1:8009/
+```
+
+Actual output:
+
+```txt
+HTTP/1.1 200 OK
+date: Wed, 19 Aug 2026 16:05:16 GMT
+server: uvicorn
+content-length: 58
+content-type: application/json
+
+{"name":"Task API","version":"1.0","endpoints":["/tasks"]}
+```
+
+Checkpoint command:
+
+```powershell
+curl.exe -sS -i http://127.0.0.1:8009/tasks
+```
+
+Actual output:
+
+```txt
+HTTP/1.1 200 OK
+date: Wed, 19 Aug 2026 16:05:16 GMT
+server: uvicorn
+content-length: 146
+content-type: application/json
+
+[{"id":1,"title":"Buy groceries","done":false},{"id":2,"title":"Read a chapter of a book","done":true},{"id":3,"title":"Review PRs","done":false}]
+```
+
+Checkpoint command:
+
+```powershell
+curl.exe -sS http://127.0.0.1:8009/openapi.json | python -c "import json, sys; data = json.load(sys.stdin); print(data['info']['description'])"
+```
+
+Actual output:
+
+```txt
+A SQLite-backed CRUD API for managing tasks.
+```
+
+Git commands:
+
+```powershell
+git add .
+git commit -m "Stage 5: database documentation"
+git push
+```
