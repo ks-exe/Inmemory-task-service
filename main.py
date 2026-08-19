@@ -1,9 +1,18 @@
+import sqlite3
+from pathlib import Path
+
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 
 Task = dict[str, object]
 BODY_INVALID_ERROR = {"error": "Request body must be a JSON object"}
+DB_PATH = Path(__file__).with_name("tasks.db")
 DONE_INVALID_ERROR = {"error": "Done must be a boolean"}
+SEED_TASKS = [
+    ("Buy groceries", 0),
+    ("Read a chapter of a book", 1),
+    ("Review PRs", 0),
+]
 TITLE_REQUIRED_ERROR = {"error": "Title is required and cannot be empty"}
 
 app = FastAPI(
@@ -20,6 +29,42 @@ tasks: list[Task] = [
     {"id": 2, "title": "Read a chapter of a book", "done": True},
     {"id": 3, "title": "Review PRs", "done": False},
 ]
+
+
+def get_db() -> sqlite3.Connection:
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def setup_database() -> None:
+    conn = get_db()
+    try:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS tasks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                done INTEGER NOT NULL
+            )
+            """
+        )
+
+        count = conn.execute("SELECT COUNT(*) FROM tasks").fetchone()[0]
+        if count == 0:
+            conn.executemany(
+                "INSERT INTO tasks (title, done) VALUES (?, ?)",
+                SEED_TASKS,
+            )
+
+        conn.commit()
+    finally:
+        conn.close()
+
+
+@app.on_event("startup")
+def startup() -> None:
+    setup_database()
 
 
 def find_task(task_id: int) -> Task | None:

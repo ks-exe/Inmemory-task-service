@@ -498,3 +498,66 @@ git add .
 git commit -m "Stage 6: publish and docs"
 git push
 ```
+
+# Week 3 Assignment A2: SQLite Migration
+
+## Stage 0: create SQLite database
+
+Port note: this checkpoint used port `8004` to avoid older local Uvicorn processes. If port `8000` is free, the same commands work by replacing `8004` with `8000`.
+
+Run command:
+
+```powershell
+python -m uvicorn main:app --host 127.0.0.1 --port 8004
+```
+
+Checkpoint command:
+
+```powershell
+curl.exe -sS -i http://127.0.0.1:8004/health
+```
+
+Actual output:
+
+```txt
+HTTP/1.1 200 OK
+date: Wed, 19 Aug 2026 12:57:26 GMT
+server: uvicorn
+content-length: 15
+content-type: application/json
+
+{"status":"ok"}
+```
+
+Checkpoint command:
+
+```powershell
+python -c "import sqlite3; conn = sqlite3.connect('tasks.db'); rows = conn.execute('SELECT id, title, done FROM tasks ORDER BY id').fetchall(); print('count', len(rows)); print(rows)"
+```
+
+Actual output:
+
+```txt
+count 3
+[(1, 'Buy groceries', 0), (2, 'Read a chapter of a book', 1), (3, 'Review PRs', 0)]
+```
+
+Checkpoint command:
+
+```powershell
+python -c "import main; main.setup_database(); conn = main.get_db(); print(conn.execute('SELECT COUNT(*) FROM tasks').fetchone()[0]); conn.close()"
+```
+
+Actual output:
+
+```txt
+3
+```
+
+Git commands:
+
+```powershell
+git add .
+git commit -m "Stage 0: create SQLite database"
+git push
+```
