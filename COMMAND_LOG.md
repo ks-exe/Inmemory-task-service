@@ -864,3 +864,53 @@ git add .
 git commit -m "Stage 3: update and delete with SQL"
 git push
 ```
+
+## Stage 4: explored SQLite
+
+Port note: this checkpoint used port `8008` to avoid older local Uvicorn processes. If port `8000` is free, the same commands work by replacing `8008` with `8000`.
+
+Run command:
+
+```powershell
+python -m uvicorn main:app --host 127.0.0.1 --port 8008
+```
+
+Checkpoint command:
+
+```powershell
+curl.exe -sS -i http://127.0.0.1:8008/tasks
+```
+
+Actual output:
+
+```txt
+HTTP/1.1 200 OK
+date: Wed, 19 Aug 2026 15:53:38 GMT
+server: uvicorn
+content-length: 146
+content-type: application/json
+
+[{"id":1,"title":"Buy groceries","done":false},{"id":2,"title":"Read a chapter of a book","done":true},{"id":3,"title":"Review PRs","done":false}]
+```
+
+SQLite exploration command:
+
+```powershell
+python -c "import sqlite3; conn = sqlite3.connect('tasks.db'); print(conn.execute('PRAGMA table_info(tasks)').fetchall()); print(conn.execute('SELECT COUNT(*) FROM tasks').fetchone()[0]); print(conn.execute('SELECT id, title, done FROM tasks ORDER BY id').fetchall()); conn.close()"
+```
+
+Actual output:
+
+```txt
+[(0, 'id', 'INTEGER', 0, None, 1), (1, 'title', 'TEXT', 1, None, 0), (2, 'done', 'INTEGER', 1, None, 0)]
+3
+[(1, 'Buy groceries', 0), (2, 'Read a chapter of a book', 1), (3, 'Review PRs', 0)]
+```
+
+Git commands:
+
+```powershell
+git add .
+git commit -m "Stage 4: explored SQLite"
+git push
+```
