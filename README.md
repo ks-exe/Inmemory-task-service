@@ -323,6 +323,16 @@ docker compose up --build
 docker compose exec db psql -U postgres -d tasks -c "SELECT id, title, done FROM tasks ORDER BY id;"
 ```
 
+## Submission Screenshots
+
+### PostgreSQL Tasks Table
+
+![PostgreSQL tasks table screenshot](assets/screenshots/database-screenshot.png)
+
+### `curl.exe -i http://localhost:3000/tasks`
+
+![curl tasks endpoint output](assets/screenshots/tasks-curl-output.png)
+
 ## Stop The Stack
 
 Stop containers while keeping database data:
