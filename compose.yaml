@@ -9,6 +9,9 @@ services:
       DATABASE_URL: postgresql://postgres:dev@db:5432/tasks
       DATABASE_POOL_MIN_SIZE: "1"
       DATABASE_POOL_MAX_SIZE: "10"
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_KEY: ${SUPABASE_KEY:-}
+      PORT: "3000"
     depends_on:
       db:
         condition: service_healthy
@@ -31,4 +34,3 @@ services:
 
 volumes:
   taskdata:
-

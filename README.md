@@ -1,13 +1,16 @@
-# FlyRank Internship Backend Track Assignment A3
+# FlyRank Backend Track Week 2 Assignment A4
 
 ## Project Overview
 
-This project implements Assignment A3, **Containerize your stack**, as a production-ready FastAPI service backed by PostgreSQL. The API exposes CRUD endpoints for a simple `tasks` table, automatically initializes the database schema on startup, and seeds three starter tasks when the table is empty.
+This project extends the Week 1 containerized FastAPI + PostgreSQL task service with Week 2 Assignment A4, **Auth - Login & Protect**.
 
-The full stack runs with Docker Compose:
+The API now supports:
 
-- `api`: FastAPI application served by Uvicorn on port `3000`
-- `db`: PostgreSQL 16 with a persistent Docker volume
+- Supabase Auth sign up, login, and logout.
+- Bearer token verification through the official Supabase Python SDK.
+- Public and protected endpoints.
+- Reusable FastAPI auth guard using `HTTPBearer`, so protected routes show the lock icon in Swagger UI.
+- Existing PostgreSQL-backed task CRUD endpoints from A3.
 
 ## Stack
 
@@ -16,9 +19,11 @@ The full stack runs with Docker Compose:
 | API framework | FastAPI |
 | Runtime | Python 3.11 |
 | ASGI server | Uvicorn |
+| Identity provider | Supabase Auth |
+| Auth SDK | `supabase` Python SDK |
 | Database | PostgreSQL 16 |
 | PostgreSQL driver | psycopg 3 |
-| Configuration | Environment variables and python-dotenv |
+| Configuration | `.env` and environment variables |
 | Container orchestration | Docker Compose |
 
 ## Project Structure
@@ -27,40 +32,73 @@ The full stack runs with Docker Compose:
 .
 +-- app/
 |   +-- __init__.py
+|   +-- auth.py
 |   +-- database.py
 |   +-- main.py
 |   +-- models.py
 |   +-- repository.py
++-- assets/
+|   +-- screenshots/
+|       +-- database-screenshot.png
+|       +-- tasks-curl-output.png
 +-- .env.example
 +-- .gitignore
 +-- Dockerfile
 +-- compose.yaml
 +-- README.md
 +-- requirements.txt
++-- test_auth.py
 +-- test_stack.py
 ```
 
-## One-Command Setup
+## Configuration
 
-Start the API and PostgreSQL:
+Create a local `.env` file from the example:
 
 ```bash
-docker compose up --build
+cp .env.example .env
 ```
 
-The API will be available at:
+On Windows PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Fill in your Supabase project settings:
+
+```env
+DATABASE_URL=postgresql://postgres:dev@localhost:5432/tasks
+DATABASE_POOL_MIN_SIZE=1
+DATABASE_POOL_MAX_SIZE=10
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=your-anon-key
+PORT=8000
+```
+
+Supabase values:
+
+- `SUPABASE_URL`: Supabase project URL from Project Settings.
+- `SUPABASE_KEY`: Supabase anon public key from Project Settings > API.
+- `.env` is ignored by Git and must not be committed.
+
+For automated signup/login testing, disable email confirmation in Supabase Auth or use a pre-confirmed test account. In Supabase, this is under Authentication > Providers > Email.
+
+## Run With Docker Compose
+
+Start PostgreSQL and the API:
+
+```bash
+docker compose up --build -d
+```
+
+The Compose stack serves the API on:
 
 ```text
 http://localhost:3000
 ```
 
-FastAPI documentation:
-
-```text
-http://localhost:3000/docs
-```
-
-Health check:
+Check health:
 
 ```bash
 curl -i http://localhost:3000/health
@@ -68,169 +106,209 @@ curl -i http://localhost:3000/health
 
 Expected response:
 
-```http
-HTTP/1.1 200 OK
-content-type: application/json
-
+```json
 {"status":"ok","db":"ok"}
 ```
 
-## Configuration
+Stop the stack:
 
-The application reads PostgreSQL connection settings from `DATABASE_URL`.
-
-Local example:
-
-```env
-DATABASE_URL=postgresql://postgres:dev@localhost:5432/tasks
-DATABASE_POOL_MIN_SIZE=1
-DATABASE_POOL_MAX_SIZE=10
+```bash
+docker compose down
 ```
 
-Docker Compose injects this container-to-container value into the API service:
+Reset PostgreSQL data:
 
-```env
-DATABASE_URL=postgresql://postgres:dev@db:5432/tasks
+```bash
+docker compose down -v
 ```
 
-## Database Initialization
+## Run Locally Without Docker
 
-On startup, the API:
+Install dependencies:
 
-1. Opens a psycopg connection pool.
-2. Creates the `tasks` table if it does not exist.
-3. Runs `SELECT COUNT(*) FROM tasks`.
-4. Seeds exactly three starter tasks only when the table is empty.
-
-Schema:
-
-```sql
-CREATE TABLE IF NOT EXISTS tasks (
-    id SERIAL PRIMARY KEY,
-    title TEXT NOT NULL,
-    done BOOLEAN NOT NULL DEFAULT FALSE
-);
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 ```
 
-Seed data:
+Windows PowerShell:
 
-| Title | Done |
-| --- | --- |
-| Complete Week 1 A3 Assignment | true |
-| Containerize PostgreSQL with Docker | true |
-| Write AI prompt and compare outputs | false |
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
 
-## Endpoint Table
+Run the API on the `.env` port, usually `8000`:
 
-| Method | Endpoint | Success Status | Error Status | Description |
-| --- | --- | --- | --- | --- |
-| GET | `/health` | `200 OK` | `500 Internal Server Error` if DB is unavailable | Runs `SELECT 1` against PostgreSQL. |
-| GET | `/tasks` | `200 OK` | `500 Internal Server Error` if DB is unavailable | Returns all tasks ordered by `id`. |
-| GET | `/tasks/{id}` | `200 OK` | `404 Not Found` | Returns one task by ID. |
-| POST | `/tasks` | `201 Created` | `400 Bad Request` | Creates a task. Rejects missing, empty, or whitespace-only titles. |
-| PUT | `/tasks/{id}` | `200 OK` | `400 Bad Request`, `404 Not Found` | Updates both `title` and `done`. |
-| DELETE | `/tasks/{id}` | `204 No Content` | `404 Not Found` | Deletes a task and returns an empty body. |
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
 
-Error response format:
+## API Endpoints
+
+| Method | Path | Auth Required | Success | Errors | Description |
+| --- | --- | --- | --- | --- | --- |
+| GET | `/health` | No | `200 OK` | `500` | Checks PostgreSQL with `SELECT 1`. |
+| GET | `/public/info` | No | `200 OK` | None | Public A4 endpoint. |
+| POST | `/auth/signup` | No | `201 Created` | `400`, `500` | Creates a Supabase Auth user. |
+| POST | `/auth/login` | No | `200 OK` | `400`, `401`, `500` | Logs in and returns bearer tokens. |
+| POST | `/auth/logout` | Yes | `204 No Content` | `401`, `500` | Logs out the current Supabase session. |
+| GET | `/protected/profile` | Yes | `200 OK` | `401`, `500` | Returns verified user metadata. |
+| GET | `/protected/dashboard` | Yes | `200 OK` | `401`, `500` | Example protected dashboard route. |
+| GET | `/tasks` | No | `200 OK` | `500` | Lists all tasks. |
+| GET | `/tasks/{id}` | No | `200 OK` | `404` | Reads one task. |
+| POST | `/tasks` | No | `201 Created` | `400` | Creates one task. |
+| PUT | `/tasks/{id}` | No | `200 OK` | `400`, `404` | Updates one task. |
+| DELETE | `/tasks/{id}` | No | `204 No Content` | `404` | Deletes one task. |
+
+Standard error body:
 
 ```json
-{"error":"Task not found"}
+{"error":"Message here"}
 ```
 
-Validation error for empty titles:
+## Auth curl Examples
 
-```json
-{"error":"Title cannot be empty"}
-```
-
-## curl Examples
-
-### Health
+### Public Endpoint
 
 ```bash
-curl -i http://localhost:3000/health
-```
-
-### List Tasks
-
-```bash
-curl -i http://localhost:3000/tasks
-```
-
-### Get Task By ID
-
-```bash
-curl -i http://localhost:3000/tasks/1
-```
-
-### Get Missing Task
-
-```bash
-curl -i http://localhost:3000/tasks/999
+curl -i http://localhost:3000/public/info
 ```
 
 Expected body:
 
 ```json
-{"error":"Task not found"}
+{"message":"Welcome stranger! This info is public."}
 ```
 
-### Create Task
+### Sign Up
 
 ```bash
-curl -i -X POST http://localhost:3000/tasks \
+curl -i -X POST http://localhost:3000/auth/signup \
   -H "Content-Type: application/json" \
-  -d '{"title":"Review Dockerized API","done":false}'
+  -d '{"email":"student@example.com","password":"strong-password-123"}'
 ```
 
-### Create Task With Default `done`
+Expected success body:
 
-```bash
-curl -i -X POST http://localhost:3000/tasks \
-  -H "Content-Type: application/json" \
-  -d '{"title":"Document local setup"}'
+```json
+{
+  "id": "supabase-user-id",
+  "email": "student@example.com",
+  "created_at": "2026-08-31T00:00:00Z"
+}
 ```
 
-### Reject Empty Title
+Missing input example:
 
 ```bash
-curl -i -X POST http://localhost:3000/tasks \
+curl -i -X POST http://localhost:3000/auth/signup \
   -H "Content-Type: application/json" \
-  -d '{"title":"   "}'
+  -d '{}'
+```
+
+Expected response:
+
+```json
+{"error":"Email and password are required"}
+```
+
+### Login
+
+```bash
+curl -i -X POST http://localhost:3000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"student@example.com","password":"strong-password-123"}'
 ```
 
 Expected body:
 
 ```json
-{"error":"Title cannot be empty"}
+{
+  "access_token": "jwt-access-token",
+  "token_type": "bearer",
+  "refresh_token": "refresh-token"
+}
 ```
 
-### Update Task
+Save the token:
 
 ```bash
-curl -i -X PUT http://localhost:3000/tasks/1 \
-  -H "Content-Type: application/json" \
-  -d '{"title":"Complete Week 1 A3 Assignment","done":true}'
+TOKEN="paste-access-token-here"
 ```
 
-### Reject Update With Missing `done`
+PowerShell:
+
+```powershell
+$TOKEN = "paste-access-token-here"
+```
+
+### Protected Profile
 
 ```bash
-curl -i -X PUT http://localhost:3000/tasks/1 \
-  -H "Content-Type: application/json" \
-  -d '{"title":"Missing done should fail"}'
+curl -i http://localhost:3000/protected/profile \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 Expected body:
 
 ```json
-{"error":"Done field is required"}
+{
+  "id": "supabase-user-id",
+  "email": "student@example.com",
+  "created_at": "2026-08-31T00:00:00Z"
+}
 ```
 
-### Delete Task
+Missing token:
 
 ```bash
-curl -i -X DELETE http://localhost:3000/tasks/1
+curl -i http://localhost:3000/protected/profile
+```
+
+Expected response:
+
+```json
+{"error":"Access token required"}
+```
+
+Invalid token:
+
+```bash
+curl -i http://localhost:3000/protected/profile \
+  -H "Authorization: Bearer invalid-token"
+```
+
+Expected response:
+
+```json
+{"error":"Invalid or expired token"}
+```
+
+### Protected Dashboard
+
+```bash
+curl -i http://localhost:3000/protected/dashboard \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Expected body:
+
+```json
+{
+  "status": "ok",
+  "message": "Protected dashboard is available.",
+  "user_id": "supabase-user-id"
+}
+```
+
+### Logout
+
+```bash
+curl -i -X POST http://localhost:3000/auth/logout \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 Expected status:
@@ -239,88 +317,73 @@ Expected status:
 HTTP/1.1 204 No Content
 ```
 
-## Automated Stack Verification
-
-Start with a clean database volume for deterministic seed checks:
-
-```bash
-docker compose down -v
-docker compose up --build
-```
-
-In a second terminal, run:
-
-```bash
-python test_stack.py
-```
-
-Expected output:
-
-```text
-PASS test_health
-PASS test_seeded_tasks
-PASS test_get_task_by_id
-PASS test_create_validation_update_and_delete_flow
-All stack tests passed.
-```
-
-The test script is also compatible with pytest:
-
-```bash
-python -m pytest test_stack.py
-```
-
-## Persistence Verification
-
-Create a task:
-
-```bash
-curl -i -X POST http://localhost:3000/tasks \
-  -H "Content-Type: application/json" \
-  -d '{"title":"Persistence check","done":false}'
-```
-
-Restart the containers without deleting the volume:
-
-```bash
-docker compose down
-docker compose up --build
-```
-
-List tasks again:
+## Task curl Examples
 
 ```bash
 curl -i http://localhost:3000/tasks
 ```
 
-The `"Persistence check"` task should still be present because PostgreSQL data is stored in the named Docker volume `taskdata`.
-
-To reset the database completely:
-
 ```bash
-docker compose down -v
+curl -i -X POST http://localhost:3000/tasks \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Review Supabase auth","done":false}'
 ```
 
-## Database Screenshot Instructions
-
-To capture the required database screenshot, run:
-
 ```bash
-docker compose exec db psql -U postgres -d tasks -c "SELECT id, title, done FROM tasks ORDER BY id;"
+curl -i -X PUT http://localhost:3000/tasks/1 \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Complete Week 2 A4 Assignment","done":true}'
 ```
 
-Take a screenshot showing:
+```bash
+curl -i -X DELETE http://localhost:3000/tasks/1
+```
 
-- The terminal command.
-- The `tasks` table rows.
-- At least the three seeded assignment tasks.
+## Swagger UI Bearer Auth
 
-For a clean screenshot with only seeded rows, reset the volume first:
+Open:
+
+```text
+http://localhost:3000/docs
+```
+
+Use the `Authorize` button:
+
+1. Log in with `/auth/login`.
+2. Copy the returned `access_token`.
+3. Click `Authorize`.
+4. Enter only the token value if Swagger shows the HTTP Bearer field.
+5. Run `/protected/profile` or `/protected/dashboard`.
+
+The protected routes use one reusable FastAPI dependency based on `HTTPBearer`, so Swagger displays them with the lock icon.
+
+## Automated Tests
+
+Run the Week 1 stack tests:
 
 ```bash
-docker compose down -v
-docker compose up --build
-docker compose exec db psql -U postgres -d tasks -c "SELECT id, title, done FROM tasks ORDER BY id;"
+python test_stack.py
+```
+
+Run the Week 2 auth tests after configuring Supabase credentials:
+
+```bash
+python test_auth.py
+```
+
+Expected auth output:
+
+```text
+PASS test_public_info
+PASS test_signup_missing_input_validation
+PASS test_signup_login_profile_and_logout_flow
+All auth tests passed.
+```
+
+Pytest is also supported:
+
+```bash
+python -m pytest test_auth.py
 ```
 
 ## Submission Screenshots
@@ -333,16 +396,3 @@ docker compose exec db psql -U postgres -d tasks -c "SELECT id, title, done FROM
 
 ![curl tasks endpoint output](assets/screenshots/tasks-curl-output.png)
 
-## Stop The Stack
-
-Stop containers while keeping database data:
-
-```bash
-docker compose down
-```
-
-Stop containers and remove persisted PostgreSQL data:
-
-```bash
-docker compose down -v
-```
