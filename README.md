@@ -188,7 +188,7 @@ Expected body:
 ```bash
 curl -i -X POST http://localhost:3000/auth/signup \
   -H "Content-Type: application/json" \
-  -d '{"email":"student@example.com","password":"strong-password-123"}'
+  -d '{"email":"student.a4.test@gmail.com","password":"strong-password-123"}'
 ```
 
 Expected success body:
@@ -196,7 +196,7 @@ Expected success body:
 ```json
 {
   "id": "supabase-user-id",
-  "email": "student@example.com",
+  "email": "student.a4.test@gmail.com",
   "created_at": "2026-08-31T00:00:00Z"
 }
 ```
@@ -220,7 +220,7 @@ Expected response:
 ```bash
 curl -i -X POST http://localhost:3000/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"student@example.com","password":"strong-password-123"}'
+  -d '{"email":"student.a4.test@gmail.com","password":"strong-password-123"}'
 ```
 
 Expected body:
@@ -257,7 +257,7 @@ Expected body:
 ```json
 {
   "id": "supabase-user-id",
-  "email": "student@example.com",
+  "email": "student.a4.test@gmail.com",
   "created_at": "2026-08-31T00:00:00Z"
 }
 ```
@@ -395,4 +395,3 @@ python -m pytest test_auth.py
 ### `curl.exe -i http://localhost:3000/tasks`
 
 ![curl tasks endpoint output](assets/screenshots/tasks-curl-output.png)
-

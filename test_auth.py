@@ -38,7 +38,7 @@ def load_dotenv_file(path: str = ".env") -> None:
 load_dotenv_file()
 
 BASE_URL = os.getenv("API_BASE_URL", "http://localhost:3000").rstrip("/")
-TEST_EMAIL = os.getenv("AUTH_TEST_EMAIL", f"flyrank-a4-{uuid.uuid4().hex}@example.com")
+TEST_EMAIL = os.getenv("AUTH_TEST_EMAIL", f"flyrank.a4.{uuid.uuid4().hex}@gmail.com")
 TEST_PASSWORD = os.getenv("AUTH_TEST_PASSWORD", "FlyRank-A4-test-password-123!")
 
 
@@ -128,7 +128,11 @@ def test_signup_login_profile_and_logout_flow() -> None:
         "/auth/login",
         {"email": TEST_EMAIL, "password": TEST_PASSWORD},
     )
-    assert login.status_code == 200
+    assert login.status_code == 200, (
+        f"Login failed with {login.status_code}: {login.body}. "
+        "If signup passed but login failed, disable Supabase email confirmation "
+        "or use a pre-confirmed test user."
+    )
     assert login.body["token_type"] == "bearer"
     assert login.body["access_token"]
     assert login.body["refresh_token"]
