@@ -1,71 +1,56 @@
-# FlyRank Backend Track Week 2 Assignment A4
+# FlyRank Week 2 Assignment A4: Auth - Login & Protect
 
 ## Project Overview
 
-This project extends the Week 1 containerized FastAPI + PostgreSQL task service with Week 2 Assignment A4, **Auth - Login & Protect**.
+This repository contains a containerized FastAPI backend for the FlyRank Backend Track. Week 1 introduced a PostgreSQL-backed task API; Week 2 extends it with Supabase Auth as the external identity provider.
 
-The API now supports:
+The application runs as a two-service Docker Compose stack:
 
-- Supabase Auth sign up, login, and logout.
-- Bearer token verification through the official Supabase Python SDK.
-- Public and protected endpoints.
-- Reusable FastAPI auth guard using `HTTPBearer`, so protected routes show the lock icon in Swagger UI.
-- Existing PostgreSQL-backed task CRUD endpoints from A3.
+- `api`: FastAPI application served by Uvicorn.
+- `db`: PostgreSQL 16 with a persistent Docker volume.
 
-## Stack
+Authentication is handled by Supabase Auth through the official `supabase` Python SDK. Public routes are available without credentials, while protected routes use a reusable FastAPI `HTTPBearer` dependency that validates the JWT access token with Supabase before allowing access.
 
-| Layer | Technology |
-| --- | --- |
-| API framework | FastAPI |
-| Runtime | Python 3.11 |
-| ASGI server | Uvicorn |
-| Identity provider | Supabase Auth |
-| Auth SDK | `supabase` Python SDK |
-| Database | PostgreSQL 16 |
-| PostgreSQL driver | psycopg 3 |
-| Configuration | `.env` and environment variables |
-| Container orchestration | Docker Compose |
-
-## Project Structure
+## Architecture
 
 ```text
-.
-+-- app/
-|   +-- __init__.py
-|   +-- auth.py
-|   +-- database.py
-|   +-- main.py
-|   +-- models.py
-|   +-- repository.py
-+-- assets/
-|   +-- screenshots/
-|       +-- database-screenshot.png
-|       +-- tasks-curl-output.png
-+-- .env.example
-+-- .gitignore
-+-- Dockerfile
-+-- compose.yaml
-+-- README.md
-+-- requirements.txt
-+-- test_auth.py
-+-- test_stack.py
+Client / Swagger UI / curl
+        |
+        | HTTP + Bearer JWT
+        v
+FastAPI API container
+        |
+        | psycopg pool
+        v
+PostgreSQL container
+
+FastAPI API container
+        |
+        | Supabase Python SDK
+        v
+Supabase Auth Identity Provider
 ```
 
-## Configuration
+Important implementation files:
 
-Create a local `.env` file from the example:
-
-```bash
-cp .env.example .env
+```text
+app/main.py          FastAPI app, auth routes, public/protected routes, task routes
+app/auth.py          Supabase client and reusable Bearer-token guard
+app/database.py      PostgreSQL connection pool
+app/repository.py    Raw SQL repository layer
+app/models.py        Pydantic request/response models
+test_auth.py         End-to-end auth verification script
 ```
 
-On Windows PowerShell:
+## Environment Setup
+
+Copy the example environment file:
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-Fill in your Supabase project settings:
+Fill in your local `.env` with real Supabase values:
 
 ```env
 DATABASE_URL=postgresql://postgres:dev@localhost:5432/tasks
@@ -76,108 +61,94 @@ SUPABASE_KEY=your-anon-key
 PORT=8000
 ```
 
-Supabase values:
+Notes:
 
-- `SUPABASE_URL`: Supabase project URL from Project Settings.
-- `SUPABASE_KEY`: Supabase anon public key from Project Settings > API.
-- `.env` is ignored by Git and must not be committed.
+- `.env` is git-ignored and must never be committed.
+- `SUPABASE_URL` is your Supabase project URL.
+- `SUPABASE_KEY` is your Supabase anon public key.
+- For automated signup/login tests, enable Email signups in Supabase and disable Confirm email:
 
-For automated signup/login testing, disable email confirmation in Supabase Auth or use a pre-confirmed test account. In Supabase, this is under Authentication > Providers > Email.
+```text
+Supabase Dashboard > Authentication > Sign In / Providers > Email
+```
 
-## Run With Docker Compose
+Required settings:
 
-Start PostgreSQL and the API:
+```text
+Enable email provider: ON
+Allow new users to sign up: ON
+Confirm email: OFF
+```
 
-```bash
+## Running The Stack
+
+Start the full stack:
+
+```powershell
 docker compose up --build -d
 ```
 
-The Compose stack serves the API on:
+Check containers:
+
+```powershell
+docker compose ps
+```
+
+Health check:
+
+```powershell
+curl.exe -i http://localhost:3000/health
+```
+
+Run the A4 auth test suite:
+
+```powershell
+python test_auth.py
+```
+
+Expected output:
 
 ```text
-http://localhost:3000
-```
-
-Check health:
-
-```bash
-curl -i http://localhost:3000/health
-```
-
-Expected response:
-
-```json
-{"status":"ok","db":"ok"}
+PASS test_public_info
+PASS test_signup_missing_input_validation
+PASS test_signup_login_profile_and_logout_flow
+All auth tests passed.
 ```
 
 Stop the stack:
 
-```bash
+```powershell
 docker compose down
 ```
 
-Reset PostgreSQL data:
+## API Endpoint Reference
 
-```bash
-docker compose down -v
-```
+| Method | Endpoint | Auth Required | Expected Status Codes |
+| --- | --- | --- | --- |
+| `GET` | `/health` | No | `200` |
+| `GET` | `/public/info` | No | `200` |
+| `POST` | `/auth/signup` | No | `201`, `400` |
+| `POST` | `/auth/login` | No | `200`, `400`, `401` |
+| `POST` | `/auth/logout` | Yes | `204`, `401` |
+| `GET` | `/protected/profile` | Yes | `200`, `401` |
+| `GET` | `/protected/dashboard` | Yes | `200`, `401` |
+| `GET` | `/tasks` | No | `200` |
+| `GET` | `/tasks/{id}` | No | `200`, `404` |
+| `POST` | `/tasks` | No | `201`, `400` |
+| `PUT` | `/tasks/{id}` | No | `200`, `400`, `404` |
+| `DELETE` | `/tasks/{id}` | No | `204`, `404` |
 
-## Run Locally Without Docker
+## cURL Examples
 
-Install dependencies:
+### Public Info
 
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-Windows PowerShell:
+Request:
 
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+curl.exe -i http://localhost:3000/public/info
 ```
 
-Run the API on the `.env` port, usually `8000`:
-
-```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-## API Endpoints
-
-| Method | Path | Auth Required | Success | Errors | Description |
-| --- | --- | --- | --- | --- | --- |
-| GET | `/health` | No | `200 OK` | `500` | Checks PostgreSQL with `SELECT 1`. |
-| GET | `/public/info` | No | `200 OK` | None | Public A4 endpoint. |
-| POST | `/auth/signup` | No | `201 Created` | `400`, `500` | Creates a Supabase Auth user. |
-| POST | `/auth/login` | No | `200 OK` | `400`, `401`, `500` | Logs in and returns bearer tokens. |
-| POST | `/auth/logout` | Yes | `204 No Content` | `401`, `500` | Logs out the current Supabase session. |
-| GET | `/protected/profile` | Yes | `200 OK` | `401`, `500` | Returns verified user metadata. |
-| GET | `/protected/dashboard` | Yes | `200 OK` | `401`, `500` | Example protected dashboard route. |
-| GET | `/tasks` | No | `200 OK` | `500` | Lists all tasks. |
-| GET | `/tasks/{id}` | No | `200 OK` | `404` | Reads one task. |
-| POST | `/tasks` | No | `201 Created` | `400` | Creates one task. |
-| PUT | `/tasks/{id}` | No | `200 OK` | `400`, `404` | Updates one task. |
-| DELETE | `/tasks/{id}` | No | `204 No Content` | `404` | Deletes one task. |
-
-Standard error body:
-
-```json
-{"error":"Message here"}
-```
-
-## Auth curl Examples
-
-### Public Endpoint
-
-```bash
-curl -i http://localhost:3000/public/info
-```
-
-Expected body:
+Response:
 
 ```json
 {"message":"Welcome stranger! This info is public."}
@@ -185,31 +156,25 @@ Expected body:
 
 ### Sign Up
 
-```bash
-curl -i -X POST http://localhost:3000/auth/signup \
-  -H "Content-Type: application/json" \
-  -d '{"email":"student.a4.test@gmail.com","password":"strong-password-123"}'
+Request:
+
+```powershell
+curl.exe -i -X POST http://localhost:3000/auth/signup `
+  -H "Content-Type: application/json" `
+  -d '{"email":"student@example.com","password":"strong-password-123"}'
 ```
 
-Expected success body:
+Success response:
 
 ```json
 {
   "id": "supabase-user-id",
-  "email": "student.a4.test@gmail.com",
-  "created_at": "2026-08-31T00:00:00Z"
+  "email": "student@example.com",
+  "created_at": "2026-09-04T17:00:00Z"
 }
 ```
 
-Missing input example:
-
-```bash
-curl -i -X POST http://localhost:3000/auth/signup \
-  -H "Content-Type: application/json" \
-  -d '{}'
-```
-
-Expected response:
+Missing input response:
 
 ```json
 {"error":"Email and password are required"}
@@ -217,13 +182,15 @@ Expected response:
 
 ### Login
 
-```bash
-curl -i -X POST http://localhost:3000/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"student.a4.test@gmail.com","password":"strong-password-123"}'
+Request:
+
+```powershell
+curl.exe -i -X POST http://localhost:3000/auth/login `
+  -H "Content-Type: application/json" `
+  -d '{"email":"student@example.com","password":"strong-password-123"}'
 ```
 
-Expected body:
+Success response:
 
 ```json
 {
@@ -233,55 +200,56 @@ Expected body:
 }
 ```
 
-Save the token:
-
-```bash
-TOKEN="paste-access-token-here"
-```
-
-PowerShell:
+Save the token in PowerShell:
 
 ```powershell
-$TOKEN = "paste-access-token-here"
+$response = Invoke-RestMethod -Method Post `
+  -Uri http://localhost:3000/auth/login `
+  -ContentType "application/json" `
+  -Body '{"email":"student@example.com","password":"strong-password-123"}'
+
+$TOKEN = $response.access_token
 ```
 
 ### Protected Profile
 
-```bash
-curl -i http://localhost:3000/protected/profile \
+Request with a valid token:
+
+```powershell
+curl.exe -i http://localhost:3000/protected/profile `
   -H "Authorization: Bearer $TOKEN"
 ```
 
-Expected body:
+Success response:
 
 ```json
 {
   "id": "supabase-user-id",
-  "email": "student.a4.test@gmail.com",
-  "created_at": "2026-08-31T00:00:00Z"
+  "email": "student@example.com",
+  "created_at": "2026-09-04T17:00:00Z"
 }
 ```
 
-Missing token:
+Request without a token:
 
-```bash
-curl -i http://localhost:3000/protected/profile
+```powershell
+curl.exe -i http://localhost:3000/protected/profile
 ```
 
-Expected response:
+Unauthorized response:
 
 ```json
 {"error":"Access token required"}
 ```
 
-Invalid token:
+Request with an invalid or expired token:
 
-```bash
-curl -i http://localhost:3000/protected/profile \
+```powershell
+curl.exe -i http://localhost:3000/protected/profile `
   -H "Authorization: Bearer invalid-token"
 ```
 
-Expected response:
+Unauthorized response:
 
 ```json
 {"error":"Invalid or expired token"}
@@ -289,12 +257,14 @@ Expected response:
 
 ### Protected Dashboard
 
-```bash
-curl -i http://localhost:3000/protected/dashboard \
+Request:
+
+```powershell
+curl.exe -i http://localhost:3000/protected/dashboard `
   -H "Authorization: Bearer $TOKEN"
 ```
 
-Expected body:
+Response:
 
 ```json
 {
@@ -306,92 +276,61 @@ Expected body:
 
 ### Logout
 
-```bash
-curl -i -X POST http://localhost:3000/auth/logout \
+Request:
+
+```powershell
+curl.exe -i -X POST http://localhost:3000/auth/logout `
   -H "Authorization: Bearer $TOKEN"
 ```
 
-Expected status:
+Expected response:
 
 ```http
 HTTP/1.1 204 No Content
 ```
 
-## Task curl Examples
+## Swagger UI Auth Walkthrough
 
-```bash
-curl -i http://localhost:3000/tasks
-```
-
-```bash
-curl -i -X POST http://localhost:3000/tasks \
-  -H "Content-Type: application/json" \
-  -d '{"title":"Review Supabase auth","done":false}'
-```
-
-```bash
-curl -i -X PUT http://localhost:3000/tasks/1 \
-  -H "Content-Type: application/json" \
-  -d '{"title":"Complete Week 2 A4 Assignment","done":true}'
-```
-
-```bash
-curl -i -X DELETE http://localhost:3000/tasks/1
-```
-
-## Swagger UI Bearer Auth
-
-Open:
+Open Swagger UI:
 
 ```text
 http://localhost:3000/docs
 ```
 
-Use the `Authorize` button:
+Steps:
 
-1. Log in with `/auth/login`.
-2. Copy the returned `access_token`.
-3. Click `Authorize`.
-4. Enter only the token value if Swagger shows the HTTP Bearer field.
-5. Run `/protected/profile` or `/protected/dashboard`.
+1. Run `POST /auth/login` with a valid email and password.
+2. Copy the `access_token` value from the response.
+3. Click the green `Authorize` button at the top of Swagger UI.
+4. Paste the access token into the HTTP Bearer field.
+5. Click `Authorize`, then close the modal.
+6. Run `GET /protected/profile`.
+7. A valid token returns `200 OK`; a missing, tampered, or expired token returns `401 Unauthorized`.
 
-The protected routes use one reusable FastAPI dependency based on `HTTPBearer`, so Swagger displays them with the lock icon.
+The lock icon appears on protected routes because the app uses FastAPI's `HTTPBearer` dependency centrally in `app/auth.py`.
 
-## Automated Tests
+## Verification Proof
 
-Run the Week 1 stack tests:
+### Login Returns Access Token
 
-```bash
-python test_stack.py
-```
+![Login response returning access token](assets/login_token.png)
 
-Run the Week 2 auth tests after configuring Supabase credentials:
+### Protected Profile Returns 200 OK With Bearer Token
 
-```bash
-python test_auth.py
-```
+![Protected profile 200 OK](assets/profile_200.png)
 
-Expected auth output:
+### Protected Profile Returns 401 Unauthorized Without Valid Token
 
-```text
-PASS test_public_info
-PASS test_signup_missing_input_validation
-PASS test_signup_login_profile_and_logout_flow
-All auth tests passed.
-```
+![Protected profile 401 Unauthorized](assets/profile_401.png)
 
-Pytest is also supported:
+### Automated Auth Tests Passing
 
-```bash
-python -m pytest test_auth.py
-```
+![Auth tests passing](assets/tests_passing.png)
 
-## Submission Screenshots
+## Security Notes
 
-### PostgreSQL Tasks Table
+- `.env` is ignored by Git and is not part of the repository.
+- Supabase credentials are read from environment variables.
+- No Supabase keys or JWT access tokens are hardcoded in application code.
+- SQL operations remain isolated in the repository layer and use psycopg parameterized queries.
 
-![PostgreSQL tasks table screenshot](assets/screenshots/database-screenshot.png)
-
-### `curl.exe -i http://localhost:3000/tasks`
-
-![curl tasks endpoint output](assets/screenshots/tasks-curl-output.png)
